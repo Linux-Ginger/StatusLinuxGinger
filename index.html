@@ -66,14 +66,17 @@
       <div class="icon">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
       </div>
-      <h1>Technische Storing</h1>
+      <h1>Technical Issue</h1>
       <div class="divider"></div>
-      <p>We ervaren momenteel een technische storing.<br>We zijn hier mee bezig en lossen dit zo snel mogelijk op.</p>
+      <p>We are currently experiencing a technical issue.<br>We are working on it and will resolve this as soon as possible.</p>
     </div>
   </div>
   <footer>
     <img src="Logo.png" alt="Linux Ginger">
-    <span>Copyright © 2024 - 2026 Linux Ginger | Linux Tutorials. All rights reserved.</span>
+    <span>Copyright © 2024 - <span id="year"></span> Linux Ginger | Linux Tutorials. All rights reserved.</span>
   </footer>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
