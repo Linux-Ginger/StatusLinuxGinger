@@ -68,15 +68,17 @@
     .card.maintenance .divider { background: #e67e22; }
     .card.online .divider { background: #27ae60; }
     p { color: #ccc; line-height: 1.7; font-size: 0.95rem; }
-    .timer {
+    .bottom {
       margin-top: 1.5rem;
+    }
+    .timer {
       color: #888;
       font-size: 0.85rem;
+      margin-top: 0.75rem;
     }
     .timer span { color: #ccc; font-weight: 500; }
     .visit-btn {
       display: inline-block;
-      margin-top: 1.5rem;
       padding: 0.6rem 1.5rem;
       background: #27ae60;
       color: white;
@@ -109,7 +111,7 @@
       <h1 id="title">Retrieving data from server</h1>
       <div class="divider"></div>
       <p id="desc">Please wait</p>
-      <div class="timer" id="timer"></div>
+      <div class="bottom" id="bottom"></div>
     </div>
   </div>
   <footer>
@@ -128,7 +130,6 @@
         title: 'All Systems Operational',
         desc: 'All services are running normally.<br>No issues have been detected.',
         icon: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z',
-        showTimer: false,
         showVisit: true
       },
       technical: {
@@ -136,7 +137,6 @@
         title: 'Technical Issue',
         desc: 'We are currently experiencing a technical issue.<br>We are working on it and will resolve this as soon as possible.',
         icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z',
-        showTimer: true,
         showVisit: false
       },
       maintenance: {
@@ -144,13 +144,11 @@
         title: 'Server Maintenance',
         desc: 'The server is currently offline for scheduled maintenance.<br>We will be back online as soon as possible.',
         icon: 'M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z',
-        showTimer: true,
         showVisit: false
       }
     };
 
     let timerInterval = null;
-    let currentStatus = null;
     let isLoading = false;
     let wasDown = false;
 
@@ -161,22 +159,24 @@
       document.getElementById('iconwrap').innerHTML = '';
       document.getElementById('title').textContent = 'Retrieving data from server';
       document.getElementById('desc').innerHTML = 'Please wait';
-      document.getElementById('timer').innerHTML = '';
+      document.getElementById('bottom').innerHTML = '';
       if (timerInterval) clearInterval(timerInterval);
     }
 
-    function startTimer(seconds) {
+    function startTimer(seconds, showVisit) {
       if (timerInterval) clearInterval(timerInterval);
       let remaining = seconds;
-      const timerEl = document.getElementById('timer');
+      const bottomEl = document.getElementById('bottom');
 
       function updateTimer() {
         const mins = Math.floor(remaining / 60);
         const secs = remaining % 60;
-        timerEl.innerHTML = `Checking again in <span>${mins}:${secs.toString().padStart(2, '0')}</span>`;
+        const visitHtml = showVisit
+          ? `<a href="https://linuxginger.com" class="visit-btn">Visit Linux Ginger →</a><br>`
+          : '';
+        bottomEl.innerHTML = `${visitHtml}<div class="timer">Checking again in <span>${mins}:${secs.toString().padStart(2, '0')}</span></div>`;
         if (remaining <= 0) {
           clearInterval(timerInterval);
-          currentStatus = null;
           loadStatus();
         }
         remaining--;
@@ -211,17 +211,7 @@
         document.getElementById('desc').innerHTML = state.desc;
       }
 
-      if (state.showTimer) {
-        startTimer(70);
-        document.getElementById('timer').innerHTML = '';
-      } else {
-        if (timerInterval) clearInterval(timerInterval);
-        document.getElementById('timer').innerHTML = '';
-      }
-
-      if (state.showVisit) {
-        document.getElementById('timer').innerHTML = '<a href="https://linuxginger.com" class="visit-btn">Visit Linux Ginger →</a>';
-      }
+      startTimer(70, state.showVisit);
     }
 
     async function loadStatus() {
@@ -237,24 +227,19 @@
         if (elapsed < 500) {
           await new Promise(r => setTimeout(r, 500 - elapsed));
         }
-
         if (data.status === 'online' && wasDown) {
           localStorage.setItem(RESOLVED_KEY, Date.now().toString());
           wasDown = false;
         }
-
         if (data.status !== 'online') {
           wasDown = true;
         }
-
-        currentStatus = data.status;
         showStatus(state, data.status);
       } catch(e) {
         const elapsed = Date.now() - startTime;
         if (elapsed < 500) {
           await new Promise(r => setTimeout(r, 500 - elapsed));
         }
-        currentStatus = 'online';
         showStatus(states.online, 'online');
       }
       isLoading = false;
