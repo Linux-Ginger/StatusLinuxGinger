@@ -58,9 +58,7 @@
       animation: spin 0.8s linear infinite;
       margin: 0 auto 1.5rem;
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
     h1 { color: white; font-size: 1.8rem; font-weight: 700; margin-bottom: 0.5rem; }
     .divider {
       width: 50px; height: 3px; background: #888;
@@ -121,6 +119,9 @@
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
 
+    const RESOLVED_KEY = 'lg_resolved_time';
+    const ONE_HOUR = 60 * 60 * 1000;
+
     const states = {
       online: {
         class: 'online',
@@ -151,6 +152,7 @@
     let timerInterval = null;
     let currentStatus = null;
     let isLoading = false;
+    let wasDown = false;
 
     function showLoader() {
       const card = document.getElementById('card');
@@ -183,16 +185,35 @@
       timerInterval = setInterval(updateTimer, 1000);
     }
 
+    function getOnlineDesc() {
+      const resolvedTime = localStorage.getItem(RESOLVED_KEY);
+      if (resolvedTime) {
+        const elapsed = Date.now() - parseInt(resolvedTime);
+        if (elapsed < ONE_HOUR) {
+          return 'The issues have been resolved. Thank you for your patience.';
+        } else {
+          localStorage.removeItem(RESOLVED_KEY);
+        }
+      }
+      return 'All services are running normally.<br>No issues have been detected.';
+    }
+
     function showStatus(state, statusKey) {
       const card = document.getElementById('card');
       card.className = 'card ' + state.class;
       document.getElementById('title').textContent = state.title;
-      document.getElementById('desc').innerHTML = state.desc;
       document.getElementById('iconwrap').className = 'icon';
       document.getElementById('iconwrap').innerHTML = `<svg viewBox="0 0 24 24"><path d="${state.icon}" fill="white"/></svg>`;
 
+      if (statusKey === 'online') {
+        document.getElementById('desc').innerHTML = getOnlineDesc();
+      } else {
+        document.getElementById('desc').innerHTML = state.desc;
+      }
+
       if (state.showTimer) {
         startTimer(70);
+        document.getElementById('timer').innerHTML = '';
       } else {
         if (timerInterval) clearInterval(timerInterval);
         document.getElementById('timer').innerHTML = '';
@@ -216,6 +237,16 @@
         if (elapsed < 500) {
           await new Promise(r => setTimeout(r, 500 - elapsed));
         }
+
+        if (data.status === 'online' && wasDown) {
+          localStorage.setItem(RESOLVED_KEY, Date.now().toString());
+          wasDown = false;
+        }
+
+        if (data.status !== 'online') {
+          wasDown = true;
+        }
+
         currentStatus = data.status;
         showStatus(state, data.status);
       } catch(e) {
