@@ -40,6 +40,7 @@
     .card.technical { border-top-color: #c0392b; }
     .card.maintenance { border-top-color: #e67e22; }
     .card.online { border-top-color: #27ae60; }
+    .card.loading { border-top-color: #888; }
     .icon {
       width: 48px; height: 48px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
@@ -75,6 +76,19 @@
       font-size: 0.85rem;
     }
     .timer span { color: #ccc; font-weight: 500; }
+    .visit-btn {
+      display: inline-block;
+      margin-top: 1.5rem;
+      padding: 0.6rem 1.5rem;
+      background: #27ae60;
+      color: white;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    .visit-btn:hover { background: #219a52; }
     footer {
       background: #1a1a1a;
       color: #aaa;
@@ -92,11 +106,11 @@
     <img src="Logo.png" alt="Linux Ginger">
   </nav>
   <div class="main">
-    <div class="card" id="card">
+    <div class="card loading" id="card">
       <div class="spinner" id="iconwrap"></div>
-      <h1 id="title">Retrieving data from server...</h1>
-      <div class="divider" id="divider"></div>
-      <p id="desc"></p>
+      <h1 id="title">Retrieving data from server</h1>
+      <div class="divider"></div>
+      <p id="desc">Please wait</p>
       <div class="timer" id="timer"></div>
     </div>
   </div>
@@ -113,26 +127,41 @@
         title: 'All Systems Operational',
         desc: 'All services are running normally.<br>No issues have been detected.',
         icon: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z',
-        showTimer: false
+        showTimer: false,
+        showVisit: true
       },
       technical: {
         class: 'technical',
         title: 'Technical Issue',
         desc: 'We are currently experiencing a technical issue.<br>We are working on it and will resolve this as soon as possible.',
         icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z',
-        showTimer: true
+        showTimer: true,
+        showVisit: false
       },
       maintenance: {
         class: 'maintenance',
         title: 'Server Maintenance',
         desc: 'The server is currently offline for scheduled maintenance.<br>We will be back online as soon as possible.',
         icon: 'M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z',
-        showTimer: true
+        showTimer: true,
+        showVisit: false
       }
     };
 
     let timerInterval = null;
     let currentStatus = null;
+    let isLoading = false;
+
+    function showLoader() {
+      const card = document.getElementById('card');
+      card.className = 'card loading';
+      document.getElementById('iconwrap').className = 'spinner';
+      document.getElementById('iconwrap').innerHTML = '';
+      document.getElementById('title').textContent = 'Retrieving data from server';
+      document.getElementById('desc').innerHTML = 'Please wait';
+      document.getElementById('timer').innerHTML = '';
+      if (timerInterval) clearInterval(timerInterval);
+    }
 
     function startTimer(seconds) {
       if (timerInterval) clearInterval(timerInterval);
@@ -145,8 +174,8 @@
         timerEl.innerHTML = `Checking again in <span>${mins}:${secs.toString().padStart(2, '0')}</span>`;
         if (remaining <= 0) {
           clearInterval(timerInterval);
-          timerEl.innerHTML = `Checking if site is back online...`;
-          window.location.href = 'https://linuxginger.com?t=' + Date.now();
+          currentStatus = null;
+          loadStatus();
         }
         remaining--;
       }
@@ -154,50 +183,53 @@
       timerInterval = setInterval(updateTimer, 1000);
     }
 
-    function showStatus(state) {
+    function showStatus(state, statusKey) {
       const card = document.getElementById('card');
       card.className = 'card ' + state.class;
       document.getElementById('title').textContent = state.title;
       document.getElementById('desc').innerHTML = state.desc;
       document.getElementById('iconwrap').className = 'icon';
       document.getElementById('iconwrap').innerHTML = `<svg viewBox="0 0 24 24"><path d="${state.icon}" fill="white"/></svg>`;
+
       if (state.showTimer) {
         startTimer(70);
       } else {
         if (timerInterval) clearInterval(timerInterval);
         document.getElementById('timer').innerHTML = '';
       }
+
+      if (state.showVisit) {
+        document.getElementById('timer').innerHTML = '<a href="https://linuxginger.com" class="visit-btn">Visit Linux Ginger →</a>';
+      }
     }
 
     async function loadStatus() {
+      if (isLoading) return;
+      isLoading = true;
+      showLoader();
       const startTime = Date.now();
       try {
         const resp = await fetch('/status.json?t=' + Date.now());
         const data = await resp.json();
         const state = states[data.status] || states.online;
         const elapsed = Date.now() - startTime;
-        const minDelay = 500;
-        if (elapsed < minDelay) {
-          await new Promise(r => setTimeout(r, minDelay - elapsed));
+        if (elapsed < 500) {
+          await new Promise(r => setTimeout(r, 500 - elapsed));
         }
-        if (currentStatus !== data.status) {
-          currentStatus = data.status;
-          showStatus(state);
-        }
+        currentStatus = data.status;
+        showStatus(state, data.status);
       } catch(e) {
         const elapsed = Date.now() - startTime;
         if (elapsed < 500) {
           await new Promise(r => setTimeout(r, 500 - elapsed));
         }
-        if (currentStatus !== 'online') {
-          currentStatus = 'online';
-          showStatus(states.online);
-        }
+        currentStatus = 'online';
+        showStatus(states.online, 'online');
       }
+      isLoading = false;
     }
 
     loadStatus();
-    setInterval(loadStatus, 30000);
   </script>
 </body>
 </html>
